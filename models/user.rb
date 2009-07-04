@@ -34,10 +34,12 @@ class User
   
 	def self.load(twitter_id, depth=0)
 	  unless depth > 3
+	    load_ids = []
   	  start_time = Time.now
       Neo4j::Transaction.run do
         user = User.get(twitter_id) || User.new
         begin
+          # sleep 24
           twitter_user = Twitter.user(twitter_id)
           user.twitter_id = twitter_user.id
           user.name = twitter_user.name
@@ -46,29 +48,36 @@ class User
           user.url = twitter_user.url
           user.profile_image_url = twitter_user.profile_image_url
           user.screen_name = twitter_user.screen_name
-          begin
-            Twitter.friend_ids(twitter_id).each do |tfriend|
-              friend = User.load(tfriend, depth+1)
-              (user.friends << friend) if friend
+          # sleep 24
+          Twitter.friend_ids(twitter_id).each do |tfriend|
+            friend = User.get(tfriend)
+            unless(friend)
+              friend = User.new { |n| 
+                n.twitter_id = tfriend
+              }
+              load_ids << tfriend
             end
-          rescue
-        	  puts "Error loading friends for [#{twitter_id}]"
+            user.friends << friend
           end
-          begin
-            Twitter.follower_ids(twitter_id).each do |tfollower|
-              follower = User.load(tfollower, depth+1)
-              (user.followers << follower) if follower
+          # sleep 24
+          Twitter.follower_ids(twitter_id).each do |tfollower|
+            follower = User.get(tfollower)
+            unless(follower)
+              follower = User.new { |n| 
+                n.twitter_id = tfollower
+              }
+              load_ids << tfollower
             end
-          rescue
-        	  puts "Error loading followers for [#{twitter_id}]"
+            user.followers << follower
           end
       	  end_time = Time.now
       	  puts "Load [#{twitter_id}] depth of [#{depth}] took [#{end_time - start_time}]"
       	rescue
       	  puts "Error loading [#{twitter_id}]"
     	  end
-  	    sleep 75
-        return user
+      end
+      load_ids.uniq.each do |id|
+    	  User.load(id, depth+1)
       end
     end
   end

@@ -1,8 +1,8 @@
+require "rubygems"
+require "neo4j"
 require 'models/user'
 
 Neo4j::Transaction.run do
-  users = User.get('10456332')
-  users.each do |user|
-    puts ">>>>>>>>>>>>>>>>> #{user.inspect}"
-  end
+  user = User.get('10075252')
+  puts ">>>>>>>>>>>>>>>>> #{user.screen_name}"
 end
