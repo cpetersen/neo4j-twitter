@@ -33,37 +33,27 @@ class User
   end	
   
 	def self.load(twitter_id, depth=0)
-	  break if depth >= 3
-	  start_time = Time.now
-    puts "Starting Transaction"
-    # Neo4j::Transaction.run do
-      puts "Started Transaction"
-      user = User.get(twitter_id) || User.new
-      twitter_user = Twitter.user(twitter_id)
-      user.twitter_id = twitter_user.id
-      user.name = twitter_user.name
-      user.screen_name = twitter_user.screen_name
-      puts "Getting Friends"
-      Twitter.friend_ids(twitter_id).each do |tfriend|
-        puts "Friend [#{tfriend}]"
-        begin
-          user.friends << User.load(tfriend, depth+1)
-        rescue
-          puts "Error loading friend [#{tfriend}]"
+	  unless depth > 3
+  	  start_time = Time.now
+      Neo4j::Transaction.run do
+        user = User.get(twitter_id) || User.new
+        twitter_user = Twitter.user(twitter_id)
+        user.twitter_id = twitter_user.id
+        user.name = twitter_user.name
+        user.screen_name = twitter_user.screen_name
+        Twitter.friend_ids(twitter_id).each do |tfriend|
+          friend = User.load(tfriend, depth+1)
+          (user.friends << friend) if friend
         end
-      end
-      puts "Getting Follower"
-      Twitter.follower_ids(twitter_id).each do |tfollower|
-        puts "Friend [#{tfollower}]"
-        begin
-          user.followers << User.load(tfollower, depth+1)
-        rescue
-          puts "Error loading follower [#{tfollower}]"
+        Twitter.follower_ids(twitter_id).each do |tfollower|
+          follower = User.load(tfollower, depth+1)
+          (user.followers << follower) if follower
         end
+    	  end_time = Time.now
+    	  puts "Load [#{twitter_id}] depth of [#{depth}] took [#{end_time - start_time}]"
+  	    sleep 75
+        return user
       end
-  	  end_time = Time.now
-  	  puts "Load [#{twitter_id}] depth of [#{depth}] took [#{end_time - start_time}]"
-      return user
-    # end
+    end
   end
 end
